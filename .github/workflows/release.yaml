@@ -1,0 +1,46 @@
+name: Auto Release
+
+# 触发条件：推送到主分支，且包含符合约定的提交
+on:
+  push:
+    branches: 
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 授予创建Release/Tag的权限
+      pull-requests: read
+
+    steps:
+      # 步骤1：检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 拉取完整提交历史，用于生成Release Notes
+
+      # 步骤2：读取VERSION文件
+      - name: Read VERSION file
+        id: version
+        run: |
+          if [ -f "VERSION" ]; then
+            VERSION=$(cat VERSION | tr -d '\n\r' | xargs)
+            echo "Read version from file: $VERSION"
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "❌ VERSION file not found"
+            exit 1
+          fi
+
+      # 步骤3：创建GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          generate_release_notes: true  # 让GitHub自动生成Release Notes
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
